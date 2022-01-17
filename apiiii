@@ -1,0 +1,236 @@
+from django.core.checks import messages
+from django.shortcuts import render
+from django.contrib.auth.models import User
+from .serializers import UserSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import login,logout,authenticate
+from rest_framework.authentication import  BasicAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authtoken.models import Token
+
+
+
+
+
+class UserdetailsAPI(APIView):
+    authentication_classes = [BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    def get(self, request, *args, **kwargs):
+        user = User.objects.all()
+        data = UserSerializer(user, many=True).data
+        return Response({"data": data})
+
+    def post(self, request, *args, **kwargs):
+        if User.objects.filter(username=request.data.get('username')).exists():
+            return Response({"msg": "This useername is alredy taken Choose other "})
+        data = UserSerializer(data=request.data, many=True)
+        username = request.data.get('username')
+        password = request.data.get('password')
+        User.objects.create_user(username=username, password=password)
+        return Response({"msg": "User created Success "})
+
+    def put(self, request, *args, **kwargs):
+        # print(request.data)
+        if User.objects.filter(username=request.data.get('username')).exists():
+            user = User.objects.get(username=request.data.get('username'))
+            # print(user)
+            serializer = UserSerializer(user, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"msg": "Details updated Successfully !"})
+            return Response({"msg": "Invalid data"})
+        return Response({"msg": "no user found on this username !"})
+
+
+
+    def patch(self, request, *args, **kwargs):
+        if User.objects.filter(id=request.data.get('id')).exists():
+            user = User.objects.get(id=request.data.get('id'))
+            serializer = UserSerializer(user, data=request.data,partial = True)
+            if serializer.is_valid():
+                serializer.save()
+                
+                return Response({"data":UserSerializer(user).data,"url":request.path,"status":status.HTTP_200_OK})
+            return Response({"msg": "Invalid data !"})
+        return Response({"msg": "NOo user found on this username !"})
+
+
+class DeleteUserAPI(APIView):
+    authentication_classes = [BasicAuthentication]
+    permission_classes = [IsAuthenticated,]
+
+    def post(self,request,*args,**kwargs):
+        if User.objects.filter(username=request.data.get('username')).exists():
+            user=User.objects.get(username=request.data.get('username'))
+            user.delete()
+            return Response({"msg":"User deleted Success "})
+        return Response({"msg":"No User found ! "})
+    
+            
+
+class LoginAPI(APIView):
+    def post(self,request,*args,**kwargs):
+        username= request.data.get('username')
+        password=request.data.get('password')
+        user=authenticate(username=username,password=password)
+        if user is not None:
+            
+            try:
+                token=Token.objects.get(user=user)
+            except:
+                token=Token.objects.create(user=user)
+            login(request,user)
+            return Response({"msg":"logged in Success !"})
+        return Response({"msg":"Invalid details"})
+
+
+class LogoutAPI(APIView):
+    def get(self,request,*args,**kwargs):
+        if request.user.is_authenticated:
+            
+            logout(request)
+        return Response({"msg":"logout Success !"})
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        urlsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+        
+        
+        from django.urls import path,include
+from rest_framework.routers import DefaultRouter
+from . import views
+from .views import UserdetailsAPI
+
+
+
+router=DefaultRouter()
+router.register('users', UserdetailsAPI,basename='user')
+
+
+urlpatterns = [
+   path('', include(router.urls)),
+
+]
+
+urlssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+
+from . import views
+from django.urls import path
+
+urlpatterns = [
+    path('users/',views.UserdetailsAPI.as_view()),
+    path('delete/',views.DeleteUserAPI.as_view()),
+    path('login/',views.LoginAPI.as_view()),
+    path('login/',views.LogoutAPI.as_view()),
+
+
+]
+
+
+viewssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+
+from django.db.models import query
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import render
+from rest_framework import viewsets
+from rest_framework.views import APIView
+from.models import User,Product
+from.serializers import UserSerializer,ProductSerializer, UserloginSerializer
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import authenticate,login,logout
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.decorators import action
+
+# Create your views here.
+
+
+class UserViewSet(viewsets.ModelViewSet):
+
+    queryset=User.objects.all()
+    serializer_class=UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        username=request.data.get('username')
+        password=request.data.get('password')
+
+        user=User.objects.create_user(username=username,password=password)
+        return Response(UserSerializer(user).data)
+
+    # @action(detail=True, methods=['post'], url_path='log-in', url_name='login')
+    # def log_in(self,request,*args,**kwargs):
+    #     username=request.data.get('username')
+    #     password=request.data.get('password')
+    #     user=authenticate(username=username,password=password)
+    #     if user is not None:
+    #         login(request,user)
+    #         return Response({"msg":"logged in"})
+
+
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset=Product.objects.all()
+    serializer_class=ProductSerializer
+
+
+class LoginAPI(viewsets.ModelViewSet):
+    # queryset=Product.objects.all()
+    serializer_class=UserloginSerializer
+
+    def get_queryset(self):
+        pass
+
+
+
+    def create(self, request, *args, **kwargs):    
+        username=request.data.get('username')
+        password=request.data.get('password')
+        user=authenticate(username=username,password=password)
+        if user is not None:
+            login(request,user)
+            print(user) 
+            try:
+                token=Token.objects.get(user=user)
+            except:
+                token=Token.objects.create(user=user)
+            data=UserSerializer(user).data
+            data["token"]=token.key
+            return Response(data,status=status.HTTP_202_ACCEPTED)
+        return Response({"MSG":"somthing went wrong"})
+    
+
+    @action(detail=True, methods=['get'], url_path='logout', url_name='login')
+    def logout(self,request,*args,**kwargs):
+        username=request.data.get('username')
+        password=request.data.get('password')
+        user=authenticate(username=username,password=password)
+        if user is not None:
+            login(request,user)
+            return Response({"msg":"logged in"})
+
+
+
+
+class LogoutAPI(APIView):
+    def get(self, request, *args, **kwargs):
+        id=request.user
+        print("" , id)
+        
+        # token=Token.objects.get(user_id=id)
+        # print(token)
+        # logout(request)
+        return Response({"msg":"No User found"})
